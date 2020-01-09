@@ -8,10 +8,10 @@ import (
 	"log"
 	"math/big"
 	"net/http"
-	"strings"
 
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/gorilla/mux"
 	"github.com/matic/ether"
 	"github.com/matic/util"
 )
@@ -19,19 +19,17 @@ import (
 // GetTransactions -
 func GetTransactions(w http.ResponseWriter, r *http.Request) {
 
-	path := r.URL.Path
-	fmt.Println("Request Path - ", path)
-	from := strings.Split(path, "/")[1]
-	fmt.Println("Request Path from - ", from)
+	vars := mux.Vars(r)
+	accountID := vars["AccountId"]
+	fmt.Fprintln(w, "AccountId - ", accountID)
 
 	pgClient, err := util.GetPostgresClient()
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	rows, err := pgClient.Query("SELECT txHash, blockNo, from, to FROM transactions WHERE from=$1", from)
+	rows, err := pgClient.Query("SELECT txHash, blockNo, fromAdr, toAdr FROM transaction WHERE fromAdr=$1", accountID)
 	if err != nil {
-		// handle this error better than this
 		panic(err)
 	}
 
@@ -45,7 +43,6 @@ func GetTransactions(w http.ResponseWriter, r *http.Request) {
 
 		err = rows.Scan(&transaction.TransactionHash, &transaction.BlockNumber, &transaction.From, &transaction.To)
 		if err != nil {
-			// handle this error
 			panic(err)
 		}
 		transactionsList = append(transactionsList, transaction)
@@ -56,7 +53,11 @@ func GetTransactions(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	json.NewEncoder(w).Encode(transactionsList)
+	resp := util.Response{}
+	resp.Transactions = transactionsList
+	resp.Count = len(transactionsList)
+
+	json.NewEncoder(w).Encode(resp)
 }
 
 func CacheBlocks(pgClient *sql.DB, ethClient *ethclient.Client) {
@@ -66,7 +67,7 @@ func CacheBlocks(pgClient *sql.DB, ethClient *ethclient.Client) {
 		log.Fatal(err)
 	}
 
-	for i := 0; i < 10000; i++ {
+	for i := 0; i < 1; i++ {
 
 		block, err := ether.GetBlockDetails(ethClient, blockHeight)
 		if err != nil {
@@ -120,9 +121,9 @@ func SubscribeAndSaveBlocks(pgClient *sql.DB, ethClient *ethclient.Client) {
 func saveTransactions(pgClient *sql.DB, transactionsList []util.Transaction) {
 
 	for _, transaction := range transactionsList {
-		fmt.Println(transaction)
+		// fmt.Println(transaction)
 
-		sqlStatement := `INSERT INTO transactions (txHash, blockNo, from, to) VALUES ($1, $2, $3, $4)`
+		sqlStatement := `INSERT INTO transaction (txHash, blockNo, fromAdr, toAdr) VALUES ($1, $2, $3, $4)`
 		_, err := pgClient.Exec(sqlStatement, transaction.TransactionHash, transaction.BlockNumber, transaction.From, transaction.To)
 		if err != nil {
 			panic(err)
