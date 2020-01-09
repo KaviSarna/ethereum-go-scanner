@@ -31,3 +31,11 @@ services:
       - basic
     ports:
       - "5050:5432"
+      
+  matic-eth:
+    container_name: matic_eth
+    build: .
+    networks:
+      - basic
+    ports:
+      - "8010:8010"
