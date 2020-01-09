@@ -67,7 +67,7 @@ func CacheBlocks(pgClient *sql.DB, ethClient *ethclient.Client) {
 		log.Fatal(err)
 	}
 
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 10000; i++ {
 
 		block, err := ether.GetBlockDetails(ethClient, blockHeight)
 		if err != nil {
